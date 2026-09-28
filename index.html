@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyFlow | برنامه مطالعه</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+    <aside class="sidebar" id="sidebar">
+
+        <div class="brand">
+            <div class="brand-logo">S</div>
+            <div>
+                <h2>StudyFlow</h2>
+                <span>برنامه مطالعه من</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+
+            <button class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">⌂</span>
+                <span>داشبورد</span>
+            </button>
+
+            <button class="nav-item" data-page="todos">
+                <span class="nav-icon">✓</span>
+                <span>کارهای من</span>
+            </button>
+
+            <button class="nav-item" data-page="questions">
+                <span class="nav-icon">▣</span>
+                <span>ثبت سؤالات</span>
+            </button>
+
+            <button class="nav-item" data-page="statistics">
+                <span class="nav-icon">◫</span>
+                <span>آمار و گزارش</span>
+            </button>
+
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="focus-card">
+                <div class="focus-icon">🎯</div>
+                <p>آرام و پیوسته جلو برو.</p>
+                <span>هر سؤال یک قدم به جلوست.</span>
+            </div>
+
+            <button class="delete-all-btn" id="deleteAllData">
+                پاک کردن همه اطلاعات
+            </button>
+        </div>
+
+    </aside>
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <div>
+                <span class="page-small-title">برنامه شخصی</span>
+                <h1 id="pageTitle">داشبورد</h1>
+            </div>
+
+            <div class="topbar-actions">
+
+                <div class="today-badge">
+                    <span>امروز</span>
+                    <strong id="todayDate">---</strong>
+                </div>
+
+                <button class="mobile-menu" id="mobileMenu">
+                    ☰
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- Dashboard -->
+
+        <section class="page active" id="dashboard">
+
+            <div class="hero">
+
+                <div class="hero-content">
+                    <span>خوش آمدی 👋</span>
+                    <h2>امروز هم یک قدم جلوتر برو.</h2>
+                    <p>
+                        کارهایت را مدیریت کن و تعداد سؤالاتی که حل می‌کنی ثبت کن.
+                    </p>
+                </div>
+
+                <div class="hero-symbol">
+                    📚
+                </div>
+
+            </div>
+
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <div class="stat-icon blue">✓</div>
+                    <div>
+                        <span>کارهای باقی‌مانده</span>
+                        <strong id="remainingTasks">0</strong>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon green">✓</div>
+                    <div>
+                        <span>کارهای انجام‌شده</span>
+                        <strong id="completedTasks">0</strong>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon purple">▣</div>
+                    <div>
+                        <span>سؤالات امروز</span>
+                        <strong id="todayQuestions">0</strong>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon orange">Σ</div>
+                    <div>
+                        <span>کل سؤالات</span>
+                        <strong id="allQuestions">0</strong>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div class="dashboard-grid">
+
+                <div class="panel">
+
+                    <div class="panel-header">
+                        <div>
+                            <span>TO-DO</span>
+                            <h3>کارهای من</h3>
+                        </div>
+
+                        <button class="panel-action" data-open-page="todos">
+                            مشاهده همه
+                        </button>
+                    </div>
+
+                    <div id="dashboardTodos" class="dashboard-todos"></div>
+
+                </div>
+
+
+                <div class="panel">
+
+                    <div class="panel-header">
+                        <div>
+                            <span>QUESTIONS</span>
+                            <h3>آمار دروس</h3>
+                        </div>
+
+                        <button class="panel-action" data-open-page="questions">
+                            ثبت سؤال
+                        </button>
+                    </div>
+
+                    <div class="subject-stat-list">
+
+                        <div class="subject-stat">
+                            <div class="subject-name">
+                                <i class="dot math"></i>
+                                <span>ریاضی</span>
+                                <strong id="mathDashboard">0</strong>
+                            </div>
+
+                            <div class="bar">
+                                <span id="mathBar"></span>
+                            </div>
+                        </div>
+
+                        <div class="subject-stat">
+                            <div class="subject-name">
+                                <i class="dot persian"></i>
+                                <span>فارسی</span>
+                                <strong id="persianDashboard">0</strong>
+                            </div>
+
+                            <div class="bar">
+                                <span id="persianBar"></span>
+                            </div>
+                        </div>
+
+                        <div class="subject-stat">
+                            <div class="subject-name">
+                                <i class="dot science"></i>
+                                <span>علوم</span>
+                                <strong id="scienceDashboard">0</strong>
+                            </div>
+
+                            <div class="bar">
+                                <span id="scienceBar"></span>
+                            </div>
+                        </div>
+
+                        <div class="subject-stat">
+                            <div class="subject-name">
+                                <i class="dot arabic"></i>
+                                <span>عربی</span>
+                                <strong id="arabicDashboard">0</strong>
+                            </div>
+
+                            <div class="bar">
+                                <span id="arabicBar"></span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="panel chart-panel">
+
+                <div class="panel-header">
+                    <div>
+                        <span>ACTIVITY</span>
+                        <h3>فعالیت اخیر</h3>
+                    </div>
+                </div>
+
+                <div class="chart" id="dashboardChart"></div>
+
+            </div>
+
+        </section>
+
+
+        <!-- Todo -->
+
+        <section class="page" id="todos">
+
+            <div class="section-heading">
+
+                <div>
+                    <span>TO-DO LIST</span>
+                    <h2>کارهای من</h2>
+                    <p>
+                        کارهای روزمره و برنامه‌هایی که می‌خواهی انجام بدهی را ثبت کن.
+                    </p>
+                </div>
+
+                <button class="primary-btn" id="openTodoModal">
+                    + افزودن کار
+                </button>
+
+            </div>
+
+
+            <div class="todo-summary">
+
+                <div>
+                    <span>همه</span>
+                    <strong id="todoAllCount">0</strong>
+                </div>
+
+                <div>
+                    <span>انجام‌شده</span>
+                    <strong id="todoCompletedCount">0</strong>
+                </div>
+
+                <div>
+                    <span>باقی‌مانده</span>
+                    <strong id="todoRemainingCount">0</strong>
+                </div>
+
+            </div>
+
+
+            <div class="todo-tabs">
+
+                <button class="todo-tab active" data-todo-filter="all">
+                    همه
+                </button>
+
+                <button class="todo-tab" data-todo-filter="active">
+                    باقی‌مانده
+                </button>
+
+                <button class="todo-tab" data-todo-filter="completed">
+                    انجام‌شده
+                </button>
+
+            </div>
+
+
+            <div id="todoList" class="todo-list"></div>
+
+        </section>
+
+
+        <!-- Questions -->
+
+        <section class="page" id="questions">
+
+            <div class="section-heading">
+
+                <div>
+                    <span>QUESTION TRACKER</span>
+                    <h2>ثبت سؤالات</h2>
+                    <p>
+                        تعداد سؤال‌هایی که حل کرده‌ای را ثبت کن و روند پیشرفتت را ببین.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="question-card panel">
+
+                <div class="question-card-title">
+                    <div class="question-big-icon">📚</div>
+
+                    <div>
+                        <h3>ثبت عملکرد امروز</h3>
+                        <p>
+                            تعداد سؤال‌های حل‌شده هر درس را وارد کن.
+                        </p>
+                    </div>
+                </div>
+
+
+                <div class="question-input-grid">
+
+                    <div class="question-box math-box">
+                        <div class="question-label">
+                            <i class="dot math"></i>
+                            <span>ریاضی</span>
+                        </div>
+
+                        <input
+                            type="number"
+                            min="0"
+                            id="mathInput"
+                            placeholder="0"
+                        >
+
+                        <small>سؤال</small>
+                    </div>
+
+
+                    <div class="question-box persian-box">
+                        <div class="question-label">
+                            <i class="dot persian"></i>
+                            <span>فارسی</span>
+                        </div>
+
+                        <input
+                            type="number"
+                            min="0"
+                            id="persianInput"
+                            placeholder="0"
+                        >
+
+                        <small>سؤال</small>
+                    </div>
+
+
+                    <div class="question-box science-box">
+                        <div class="question-label">
+                            <i class="dot science"></i>
+                            <span>علوم</span>
+                        </div>
+
+                        <input
+                            type="number"
+                            min="0"
+                            id="scienceInput"
+                            placeholder="0"
+                        >
+
+                        <small>سؤال</small>
+                    </div>
+
+
+                    <div class="question-box arabic-box">
+                        <div class="question-label">
+                            <i class="dot arabic"></i>
+                            <span>عربی</span>
+                        </div>
+
+                        <input
+                            type="number"
+                            min="0"
+                            id="arabicInput"
+                            placeholder="0"
+                        >
+
+                        <small>سؤال</small>
+                    </div>
+
+                </div>
+
+
+                <div class="question-total">
+
+                    <div>
+                        <span>مجموع امروز</span>
+                        <strong id="questionTodayTotal">0</strong>
+                        <small>سؤال</small>
+                    </div>
+
+                    <button class="primary-btn" id="saveQuestions">
+                        ثبت عملکرد
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="panel history-panel">
+
+                <div class="panel-header">
+                    <div>
+                        <span>HISTORY</span>
+                        <h3>سوابق ثبت‌شده</h3>
+                    </div>
+
+                    <span class="history-count" id="historyCount">
+                        0 روز
+                    </span>
+                </div>
+
+                <div id="questionHistory"></div>
+
+            </div>
+
+        </section>
+
+
+        <!-- Statistics -->
+
+        <section class="page" id="statistics">
+
+            <div class="section-heading">
+
+                <div>
+                    <span>STATISTICS</span>
+                    <h2>آمار و گزارش</h2>
+                    <p>
+                        خلاصه‌ای از عملکردت در تمام مدت.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="report-grid">
+
+                <div class="report-card">
+                    <span>کل سؤالات</span>
+                    <strong id="reportQuestions">0</strong>
+                    <small>سؤال حل‌شده</small>
+                </div>
+
+                <div class="report-card">
+                    <span>ریاضی</span>
+                    <strong id="reportMath">0</strong>
+                    <small>سؤال</small>
+                </div>
+
+                <div class="report-card">
+                    <span>فارسی</span>
+                    <strong id="reportPersian">0</strong>
+                    <small>سؤال</small>
+                </div>
+
+                <div class="report-card">
+                    <span>علوم</span>
+                    <strong id="reportScience">0</strong>
+                    <small>سؤال</small>
+                </div>
+
+                <div class="report-card">
+                    <span>عربی</span>
+                    <strong id="reportArabic">0</strong>
+                    <small>سؤال</small>
+                </div>
+
+                <div class="report-card">
+                    <span>کارهای انجام‌شده</span>
+                    <strong id="reportTodos">0</strong>
+                    <small>کار</small>
+                </div>
+
+            </div>
+
+
+            <div class="statistics-layout">
+
+                <div class="panel">
+
+                    <div class="panel-header">
+                        <div>
+                            <span>SUBJECTS</span>
+                            <h3>مقایسه دروس</h3>
+                        </div>
+                    </div>
+
+                    <div id="subjectReport"></div>
+
+                </div>
+
+
+                <div class="panel">
+
+                    <div class="panel-header">
+                        <div>
+                            <span>RECENT ACTIVITY</span>
+                            <h3>روزهای اخیر</h3>
+                        </div>
+                    </div>
+
+                    <div id="recentDays"></div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- Todo Modal -->
+
+<div class="modal" id="todoModal">
+
+    <div class="modal-content">
+
+        <button class="modal-close" id="closeTodoModal">
+            ×
+        </button>
+
+        <div class="modal-heading">
+            <span>NEW TASK</span>
+            <h2>افزودن کار جدید</h2>
+            <p>
+                کاری که می‌خواهی انجام بدهی را وارد کن.
+            </p>
+        </div>
+
+        <label for="todoInput">
+            عنوان کار
+        </label>
+
+        <input
+            type="text"
+            id="todoInput"
+            placeholder="مثلاً مطالعه فصل سوم علوم"
+            maxlength="120"
+        >
+
+        <button class="primary-btn modal-submit" id="addTodo">
+            افزودن کار
+        </button>
+
+    </div>
+
+</div>
+
+
+<div class="toast" id="toast"></div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
