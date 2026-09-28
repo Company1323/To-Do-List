@@ -1,4 +1,4 @@
-const STORAGE_KEY = "studyFlow_v2";
+const STORAGE_KEY = "studyFlow_v3";
 
 const defaultData = {
     todos: [],
@@ -26,13 +26,12 @@ function loadData() {
             };
         }
 
-        const data = JSON.parse(saved);
+        const parsed = JSON.parse(saved);
 
         return {
-            todos: Array.isArray(data.todos) ? data.todos : [],
-            questions: Array.isArray(data.questions) ? data.questions : []
+            todos: Array.isArray(parsed.todos) ? parsed.todos : [],
+            questions: Array.isArray(parsed.questions) ? parsed.questions : []
         };
-
     } catch (error) {
         console.error("خطا در خواندن اطلاعات:", error);
 
@@ -45,357 +44,172 @@ function loadData() {
 
 function saveData() {
     try {
-        localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(appData)
-        );
-
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
         return true;
-
     } catch (error) {
         console.error("خطا در ذخیره اطلاعات:", error);
-        showToast("ذخیره اطلاعات انجام نشد.");
+        showToast("ذخیره اطلاعات انجام نشد", "error");
         return false;
     }
 }
 
-function getTodayKey() {
-    const date = new Date();
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
+function escapeHTML(text) {
+    const div = document.createElement("div");
+    div.textContent = text ?? "";
+    return div.innerHTML;
 }
 
-function formatDate(dateString) {
-    const date = new Date(dateString + "T00:00:00");
+function formatDate(date) {
+    const d = new Date(date);
 
-    return date.toLocaleDateString("fa-IR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long"
-    });
-}
-
-function formatShortDate(dateString) {
-    const date = new Date(dateString + "T00:00:00");
-
-    return date.toLocaleDateString("fa-IR", {
-        month: "short",
+    return d.toLocaleDateString("fa-IR", {
+        year: "numeric",
+        month: "long",
         day: "numeric"
     });
 }
 
-function escapeHTML(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+function formatTime(date) {
+    const d = new Date(date);
+
+    return d.toLocaleTimeString("fa-IR", {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
 }
 
-function showToast(message) {
-    const toast = document.getElementById("toast");
+function showToast(message, type = "success") {
+    let toast = document.getElementById("toast");
 
-    if (!toast) return;
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "toast";
+        document.body.appendChild(toast);
+    }
 
     toast.textContent = message;
-    toast.classList.add("show");
+    toast.className = `toast ${type}`;
 
-    clearTimeout(window.toastTimer);
-
-    window.toastTimer = setTimeout(() => {
+    setTimeout(() => {
         toast.classList.remove("show");
-    }, 2200);
+    }, 2500);
+
+    requestAnimationFrame(() => {
+        toast.classList.add("show");
+    });
 }
 
-function getSubjectTotals() {
-    const totals = {
-        math: 0,
-        persian: 0,
-        science: 0,
-        arabic: 0
+function getSubjectName(subject) {
+    const subjects = {
+        math: "ریاضی",
+        persian: "فارسی",
+        science: "علوم",
+        arabic: "عربی"
     };
 
-    appData.questions.forEach(item => {
-        totals.math += Number(item.math) || 0;
-        totals.persian += Number(item.persian) || 0;
-        totals.science += Number(item.science) || 0;
-        totals.arabic += Number(item.arabic) || 0;
-    });
-
-    return totals;
+    return subjects[subject] || subject;
 }
 
 function getTotalQuestions() {
-    const totals = getSubjectTotals();
-
-    return (
-        totals.math +
-        totals.persian +
-        totals.science +
-        totals.arabic
-    );
+    return appData.questions.reduce((total, item) => {
+        return total + Number(item.count || 0);
+    }, 0);
 }
 
 function getTodayQuestions() {
-    const today = getTodayKey();
+    const today = new Date().toISOString().split("T")[0];
 
-    const item = appData.questions.find(
-        question => question.date === today
-    );
-
-    if (!item) return 0;
-
-    return (
-        Number(item.math) +
-        Number(item.persian) +
-        Number(item.science) +
-        Number(item.arabic)
-    );
+    return appData.questions
+        .filter(item => item.date === today)
+        .reduce((total, item) => {
+            return total + Number(item.count || 0);
+        }, 0);
 }
 
-function updateTopbar() {
-    const date = new Date();
+function getCompletedTodos() {
+    return appData.todos.filter(todo => todo.completed).length;
+}
 
-    const todayDate = document.getElementById("todayDate");
-
-    if (todayDate) {
-        todayDate.textContent =
-            date.toLocaleDateString("fa-IR", {
-                day: "numeric",
-                month: "short"
-            });
-    }
+function getPendingTodos() {
+    return appData.todos.filter(todo => !todo.completed).length;
 }
 
 function updateDashboard() {
-    const remaining = appData.todos.filter(
-        todo => !todo.completed
-    ).length;
+    const totalQuestionsElement = document.getElementById("totalQuestions");
+    const todayQuestionsElement = document.getElementById("todayQuestions");
+    const totalTodosElement = document.getElementById("totalTodos");
+    const completedTodosElement = document.getElementById("completedTodos");
 
-    const completed = appData.todos.filter(
-        todo => todo.completed
-    ).length;
-
-    const remainingTasks =
-        document.getElementById("remainingTasks");
-
-    const completedTasks =
-        document.getElementById("completedTasks");
-
-    const todayQuestions =
-        document.getElementById("todayQuestions");
-
-    const allQuestions =
-        document.getElementById("allQuestions");
-
-    if (remainingTasks) {
-        remainingTasks.textContent = remaining;
+    if (totalQuestionsElement) {
+        totalQuestionsElement.textContent = getTotalQuestions();
     }
 
-    if (completedTasks) {
-        completedTasks.textContent = completed;
+    if (todayQuestionsElement) {
+        todayQuestionsElement.textContent = getTodayQuestions();
     }
 
-    if (todayQuestions) {
-        todayQuestions.textContent = getTodayQuestions();
+    if (totalTodosElement) {
+        totalTodosElement.textContent = appData.todos.length;
     }
 
-    if (allQuestions) {
-        allQuestions.textContent = getTotalQuestions();
+    if (completedTodosElement) {
+        completedTodosElement.textContent = getCompletedTodos();
     }
 
-    const totals = getSubjectTotals();
-
-    const mathDashboard =
-        document.getElementById("mathDashboard");
-
-    const persianDashboard =
-        document.getElementById("persianDashboard");
-
-    const scienceDashboard =
-        document.getElementById("scienceDashboard");
-
-    const arabicDashboard =
-        document.getElementById("arabicDashboard");
-
-    if (mathDashboard) {
-        mathDashboard.textContent = totals.math;
-    }
-
-    if (persianDashboard) {
-        persianDashboard.textContent = totals.persian;
-    }
-
-    if (scienceDashboard) {
-        scienceDashboard.textContent = totals.science;
-    }
-
-    if (arabicDashboard) {
-        arabicDashboard.textContent = totals.arabic;
-    }
-
-    const max = Math.max(
-        totals.math,
-        totals.persian,
-        totals.science,
-        totals.arabic,
-        1
-    );
-
-    const mathBar = document.getElementById("mathBar");
-    const persianBar = document.getElementById("persianBar");
-    const scienceBar = document.getElementById("scienceBar");
-    const arabicBar = document.getElementById("arabicBar");
-
-    if (mathBar) {
-        mathBar.style.width =
-            `${(totals.math / max) * 100}%`;
-    }
-
-    if (persianBar) {
-        persianBar.style.width =
-            `${(totals.persian / max) * 100}%`;
-    }
-
-    if (scienceBar) {
-        scienceBar.style.width =
-            `${(totals.science / max) * 100}%`;
-    }
-
-    if (arabicBar) {
-        arabicBar.style.width =
-            `${(totals.arabic / max) * 100}%`;
-    }
-
-    renderDashboardTodos();
-    renderDashboardChart();
+    renderRecentTodos();
 }
 
-function renderDashboardTodos() {
-    const container =
-        document.getElementById("dashboardTodos");
+function renderRecentTodos() {
+    const container = document.getElementById("recentTodos");
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
-    const todos = appData.todos
-        .slice()
-        .reverse()
-        .slice(0, 5);
+    const todos = [...appData.todos]
+        .slice(-5)
+        .reverse();
 
     if (todos.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                هنوز کاری ثبت نکرده‌ای.
+                هنوز کاری اضافه نشده است.
             </div>
         `;
 
         return;
     }
 
-    container.innerHTML = todos.map(todo => {
-        return `
-            <div class="todo-mini ${todo.completed ? "done" : ""}">
-
-                <button
-                    class="check ${todo.completed ? "checked" : ""}"
-                    onclick="toggleTodo('${todo.id}')"
-                >
-                    ${todo.completed ? "✓" : ""}
-                </button>
-
-                <span class="todo-mini-text">
-                    ${escapeHTML(todo.title)}
-                </span>
-
+    container.innerHTML = todos.map(todo => `
+        <div class="todo-item ${todo.completed ? "completed" : ""}">
+            <div class="todo-check ${todo.completed ? "checked" : ""}"
+                 onclick="toggleTodo(${todo.id})">
+                ${todo.completed ? "✓" : ""}
             </div>
-        `;
-    }).join("");
+
+            <div class="todo-content">
+                <div class="todo-text">
+                    ${escapeHTML(todo.text)}
+                </div>
+
+                <div class="todo-time">
+                    ${formatDate(todo.createdAt)}
+                </div>
+            </div>
+
+            <button onclick="deleteTodo(${todo.id})" class="delete-btn">
+                ×
+            </button>
+        </div>
+    `).join("");
 }
 
-function renderDashboardChart() {
-    const container =
-        document.getElementById("dashboardChart");
+function renderTodos() {
+    const container = document.getElementById("todoList");
 
-    if (!container) return;
-
-    const days = [];
-
-    for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-
-        date.setDate(date.getDate() - i);
-
-        const year = date.getFullYear();
-        const month =
-            String(date.getMonth() + 1).padStart(2, "0");
-        const day =
-            String(date.getDate()).padStart(2, "0");
-
-        const key =
-            `${year}-${month}-${day}`;
-
-        const question = appData.questions.find(
-            item => item.date === key
-        );
-
-        const total = question
-            ? Number(question.math) +
-              Number(question.persian) +
-              Number(question.science) +
-              Number(question.arabic)
-            : 0;
-
-        days.push({
-            date: key,
-            total,
-            name: date.toLocaleDateString("fa-IR", {
-                weekday: "short"
-            })
-        });
+    if (!container) {
+        return;
     }
-
-    const max = Math.max(
-        ...days.map(day => day.total),
-        1
-    );
-
-    container.innerHTML = days.map(day => {
-        const height = Math.max(
-            4,
-            (day.total / max) * 120
-        );
-
-        return `
-            <div class="chart-column">
-
-                <span class="chart-value">
-                    ${day.total}
-                </span>
-
-                <div
-                    class="chart-bar"
-                    style="height:${height}px"
-                ></div>
-
-                <span class="chart-day">
-                    ${day.name}
-                </span>
-
-            </div>
-        `;
-    }).join("");
-}
-
-function renderTodoList() {
-    const container =
-        document.getElementById("todoList");
-
-    if (!container) return;
 
     let todos = [...appData.todos];
 
@@ -407,830 +221,471 @@ function renderTodoList() {
         todos = todos.filter(todo => todo.completed);
     }
 
+    todos.reverse();
+
     if (todos.length === 0) {
         container.innerHTML = `
-            <div class="panel empty-state">
-                چیزی برای نمایش وجود ندارد.
+            <div class="empty-state">
+                <div class="empty-icon">✓</div>
+                <div>موردی برای نمایش وجود ندارد.</div>
             </div>
         `;
 
         return;
     }
 
-    container.innerHTML = todos
-        .slice()
-        .reverse()
-        .map(todo => {
-            return `
-                <div class="todo-item ${todo.completed ? "done" : ""}">
+    container.innerHTML = todos.map(todo => `
+        <div class="todo-item ${todo.completed ? "completed" : ""}">
+            <button
+                class="todo-check ${todo.completed ? "checked" : ""}"
+                onclick="toggleTodo(${todo.id})"
+                type="button">
+                ${todo.completed ? "✓" : ""}
+            </button>
 
-                    <button
-                        class="check ${todo.completed ? "checked" : ""}"
-                        onclick="toggleTodo('${todo.id}')"
-                    >
-                        ${todo.completed ? "✓" : ""}
-                    </button>
-
-                    <div class="todo-content">
-
-                        <div class="todo-title">
-                            ${escapeHTML(todo.title)}
-                        </div>
-
-                        <span class="todo-status">
-                            ${todo.completed
-                                ? "انجام شده"
-                                : "در انتظار انجام"}
-                        </span>
-
-                    </div>
-
-                    <button
-                        class="delete-todo"
-                        onclick="deleteTodo('${todo.id}')"
-                    >
-                        ×
-                    </button>
-
+            <div class="todo-content">
+                <div class="todo-text">
+                    ${escapeHTML(todo.text)}
                 </div>
-            `;
-        })
-        .join("");
-}
 
-function updateTodoCounters() {
-    const all = appData.todos.length;
+                <div class="todo-time">
+                    ${formatDate(todo.createdAt)}
+                    ${formatTime(todo.createdAt)}
+                </div>
+            </div>
 
-    const completed = appData.todos.filter(
-        todo => todo.completed
-    ).length;
-
-    const remaining = all - completed;
-
-    const allCount =
-        document.getElementById("todoAllCount");
-
-    const completedCount =
-        document.getElementById("todoCompletedCount");
-
-    const remainingCount =
-        document.getElementById("todoRemainingCount");
-
-    if (allCount) {
-        allCount.textContent = all;
-    }
-
-    if (completedCount) {
-        completedCount.textContent = completed;
-    }
-
-    if (remainingCount) {
-        remainingCount.textContent = remaining;
-    }
+            <button
+                class="delete-btn"
+                onclick="deleteTodo(${todo.id})"
+                type="button">
+                ×
+            </button>
+        </div>
+    `).join("");
 }
 
 function addTodo() {
-    const input =
-        document.getElementById("todoInput");
+    const input = document.getElementById("todoInput");
 
-    if (!input) return;
-
-    const title = input.value.trim();
-
-    if (!title) {
-        showToast("عنوان کار را وارد کن.");
-        input.focus();
+    if (!input) {
         return;
     }
 
-    appData.todos.push({
-        id: Date.now().toString(),
-        title,
+    const text = input.value.trim();
+
+    if (!text) {
+        showToast("لطفاً متن کار را وارد کنید", "error");
+        return;
+    }
+
+    const newTodo = {
+        id: Date.now(),
+        text: text,
         completed: false,
         createdAt: new Date().toISOString()
-    });
+    };
 
-    if (!saveData()) return;
+    appData.todos.push(newTodo);
 
-    input.value = "";
+    if (saveData()) {
+        input.value = "";
 
-    closeTodoModal();
+        renderTodos();
+        renderRecentTodos();
+        updateDashboard();
 
-    renderAll();
-
-    showToast("کار جدید اضافه شد ✓");
+        showToast("کار جدید اضافه شد");
+    }
 }
 
 function toggleTodo(id) {
-    const todo = appData.todos.find(
-        item => item.id === id
-    );
+    const todo = appData.todos.find(item => item.id === id);
 
-    if (!todo) return;
+    if (!todo) {
+        return;
+    }
 
     todo.completed = !todo.completed;
 
-    if (!saveData()) return;
-
-    renderAll();
-
-    showToast(
-        todo.completed
-            ? "کار انجام شد ✓"
-            : "کار به حالت انجام‌نشده برگشت"
-    );
+    if (saveData()) {
+        renderTodos();
+        renderRecentTodos();
+        updateDashboard();
+    }
 }
 
 function deleteTodo(id) {
-    appData.todos = appData.todos.filter(
-        todo => todo.id !== id
-    );
+    const index = appData.todos.findIndex(item => item.id === id);
 
-    if (!saveData()) return;
-
-    renderAll();
-
-    showToast("کار حذف شد.");
-}
-
-function updateQuestionTotalPreview() {
-    const mathInput =
-        document.getElementById("mathInput");
-
-    const persianInput =
-        document.getElementById("persianInput");
-
-    const scienceInput =
-        document.getElementById("scienceInput");
-
-    const arabicInput =
-        document.getElementById("arabicInput");
-
-    if (!mathInput ||
-        !persianInput ||
-        !scienceInput ||
-        !arabicInput) {
+    if (index === -1) {
         return;
     }
 
-    const math =
-        Number(mathInput.value) || 0;
+    appData.todos.splice(index, 1);
 
-    const persian =
-        Number(persianInput.value) || 0;
+    if (saveData()) {
+        renderTodos();
+        renderRecentTodos();
+        updateDashboard();
 
-    const science =
-        Number(scienceInput.value) || 0;
-
-    const arabic =
-        Number(arabicInput.value) || 0;
-
-    const total =
-        math +
-        persian +
-        science +
-        arabic;
-
-    const preview =
-        document.getElementById("questionTodayTotal");
-
-    if (preview) {
-        preview.textContent = total;
+        showToast("کار حذف شد");
     }
 }
 
-function loadTodayQuestions() {
-    const today = getTodayKey();
+function setTodoFilter(filter) {
+    todoFilter = filter;
 
-    const item = appData.questions.find(
-        question => question.date === today
-    );
+    document.querySelectorAll("[data-todo-filter]").forEach(button => {
+        button.classList.toggle(
+            "active",
+            button.dataset.todoFilter === filter
+        );
+    });
 
-    const mathInput =
-        document.getElementById("mathInput");
-
-    const persianInput =
-        document.getElementById("persianInput");
-
-    const scienceInput =
-        document.getElementById("scienceInput");
-
-    const arabicInput =
-        document.getElementById("arabicInput");
-
-    if (!mathInput ||
-        !persianInput ||
-        !scienceInput ||
-        !arabicInput) {
-        return;
-    }
-
-    mathInput.value =
-        item ? item.math : "";
-
-    persianInput.value =
-        item ? item.persian : "";
-
-    scienceInput.value =
-        item ? item.science : "";
-
-    arabicInput.value =
-        item ? item.arabic : "";
-
-    updateQuestionTotalPreview();
+    renderTodos();
 }
 
-function saveQuestions() {
-    const today = getTodayKey();
+function saveQuestion() {
+    const subjectElement = document.getElementById("questionSubject");
+    const countElement = document.getElementById("questionCount");
+    const dateElement = document.getElementById("questionDate");
 
-    const mathInput =
-        document.getElementById("mathInput");
-
-    const persianInput =
-        document.getElementById("persianInput");
-
-    const scienceInput =
-        document.getElementById("scienceInput");
-
-    const arabicInput =
-        document.getElementById("arabicInput");
-
-    if (!mathInput ||
-        !persianInput ||
-        !scienceInput ||
-        !arabicInput) {
+    if (!subjectElement || !countElement) {
         return;
     }
 
-    const values = {
-        math: Number(mathInput.value) || 0,
-        persian: Number(persianInput.value) || 0,
-        science: Number(scienceInput.value) || 0,
-        arabic: Number(arabicInput.value) || 0
+    const subject = subjectElement.value;
+    const count = Number(countElement.value);
+
+    const date = dateElement && dateElement.value
+        ? dateElement.value
+        : new Date().toISOString().split("T")[0];
+
+    if (!subject) {
+        showToast("لطفاً درس را انتخاب کنید", "error");
+        return;
+    }
+
+    if (!count || count <= 0) {
+        showToast("تعداد سؤال را وارد کنید", "error");
+        return;
+    }
+
+    const newQuestion = {
+        id: Date.now(),
+        subject: subject,
+        count: count,
+        date: date,
+        createdAt: new Date().toISOString()
     };
 
-    const total =
-        values.math +
-        values.persian +
-        values.science +
-        values.arabic;
+    appData.questions.push(newQuestion);
 
-    const existing = appData.questions.find(
-        item => item.date === today
-    );
+    if (saveData()) {
+        countElement.value = "";
 
-    if (existing) {
-        existing.math = values.math;
-        existing.persian = values.persian;
-        existing.science = values.science;
-        existing.arabic = values.arabic;
-    } else {
-        appData.questions.push({
-            date: today,
-            ...values
-        });
+        renderQuestionHistory();
+        renderStatistics();
+        updateDashboard();
+
+        showToast("تعداد سؤال ثبت شد");
     }
-
-    if (!saveData()) return;
-
-    renderAll();
-
-    showToast(`امروز ${total} سؤال ثبت شد ✓`);
 }
 
 function renderQuestionHistory() {
-    const container =
-        document.getElementById("questionHistory");
+    const container = document.getElementById("questionHistory");
 
-    const historyCount =
-        document.getElementById("historyCount");
-
-    if (!container) return;
-
-    const questions = [...appData.questions]
-        .sort((a, b) =>
-            b.date.localeCompare(a.date)
-        );
-
-    if (historyCount) {
-        historyCount.textContent =
-            `${questions.length} روز`;
+    if (!container) {
+        return;
     }
+
+    const questions = [...appData.questions].reverse();
 
     if (questions.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                هنوز هیچ آماری ثبت نشده است.
+                هنوز سؤالی ثبت نشده است.
             </div>
         `;
 
         return;
     }
 
-    container.innerHTML = questions.map(item => {
-        const total =
-            Number(item.math) +
-            Number(item.persian) +
-            Number(item.science) +
-            Number(item.arabic);
+    container.innerHTML = questions.map(item => `
+        <div class="question-history-item">
+            <div>
+                <strong>${escapeHTML(getSubjectName(item.subject))}</strong>
 
-        return `
-            <div class="history-row">
-
-                <div class="history-date">
-                    ${formatShortDate(item.date)}
+                <div class="question-history-date">
+                    ${formatDate(item.date)}
                 </div>
-
-                <div class="history-number">
-                    ریاضی: ${item.math}
-                </div>
-
-                <div class="history-number">
-                    فارسی: ${item.persian}
-                </div>
-
-                <div class="history-number">
-                    علوم: ${item.science}
-                </div>
-
-                <div class="history-number">
-                    عربی: ${item.arabic}
-                </div>
-
-                <div class="history-total">
-                    ${total} سؤال
-                </div>
-
-                <button
-                    class="history-delete"
-                    onclick="deleteQuestionRecord('${item.date}')"
-                >
-                    حذف
-                </button>
-
             </div>
-        `;
-    }).join("");
+
+            <div class="question-count">
+                ${item.count} سؤال
+            </div>
+
+            <button
+                class="delete-btn"
+                onclick="deleteQuestion(${item.id})"
+                type="button">
+                ×
+            </button>
+        </div>
+    `).join("");
 }
 
-function deleteQuestionRecord(date) {
-    appData.questions =
-        appData.questions.filter(
-            item => item.date !== date
-        );
+function deleteQuestion(id) {
+    const index = appData.questions.findIndex(item => item.id === id);
 
-    if (!saveData()) return;
+    if (index === -1) {
+        return;
+    }
 
-    renderAll();
+    appData.questions.splice(index, 1);
 
-    loadTodayQuestions();
+    if (saveData()) {
+        renderQuestionHistory();
+        renderStatistics();
+        updateDashboard();
 
-    showToast("آمار این روز حذف شد.");
+        showToast("ثبت سؤال حذف شد");
+    }
+}
+
+function getSubjectTotal(subject) {
+    return appData.questions
+        .filter(item => item.subject === subject)
+        .reduce((total, item) => {
+            return total + Number(item.count || 0);
+        }, 0);
 }
 
 function renderStatistics() {
-    const totals = getSubjectTotals();
+    const totalElement = document.getElementById("statisticsTotal");
+    const todayElement = document.getElementById("statisticsToday");
+    const todoElement = document.getElementById("statisticsTodos");
 
-    const reportQuestions =
-        document.getElementById("reportQuestions");
-
-    const reportMath =
-        document.getElementById("reportMath");
-
-    const reportPersian =
-        document.getElementById("reportPersian");
-
-    const reportScience =
-        document.getElementById("reportScience");
-
-    const reportArabic =
-        document.getElementById("reportArabic");
-
-    const reportTodos =
-        document.getElementById("reportTodos");
-
-    if (reportQuestions) {
-        reportQuestions.textContent =
-            getTotalQuestions();
+    if (totalElement) {
+        totalElement.textContent = getTotalQuestions();
     }
 
-    if (reportMath) {
-        reportMath.textContent = totals.math;
+    if (todayElement) {
+        todayElement.textContent = getTodayQuestions();
     }
 
-    if (reportPersian) {
-        reportPersian.textContent =
-            totals.persian;
+    if (todoElement) {
+        todoElement.textContent = appData.todos.length;
     }
 
-    if (reportScience) {
-        reportScience.textContent =
-            totals.science;
-    }
+    const subjects = {
+        math: document.getElementById("mathTotal"),
+        persian: document.getElementById("persianTotal"),
+        science: document.getElementById("scienceTotal"),
+        arabic: document.getElementById("arabicTotal")
+    };
 
-    if (reportArabic) {
-        reportArabic.textContent =
-            totals.arabic;
-    }
-
-    if (reportTodos) {
-        reportTodos.textContent =
-            appData.todos.filter(
-                todo => todo.completed
-            ).length;
-    }
-
-    renderSubjectReport();
-    renderRecentDays();
+    Object.keys(subjects).forEach(subject => {
+        if (subjects[subject]) {
+            subjects[subject].textContent = getSubjectTotal(subject);
+        }
+    });
 }
 
-function renderSubjectReport() {
-    const container =
-        document.getElementById("subjectReport");
+function showPage(pageName) {
+    document.querySelectorAll("[data-page]").forEach(page => {
+        page.classList.remove("active");
+    });
 
-    if (!container) return;
+    const page = document.querySelector(`[data-page="${pageName}"]`);
 
-    const totals = getSubjectTotals();
+    if (page) {
+        page.classList.add("active");
+    }
 
-    const subjects = [
-        ["ریاضی", totals.math, "math"],
-        ["فارسی", totals.persian, "persian"],
-        ["علوم", totals.science, "science"],
-        ["عربی", totals.arabic, "arabic"]
-    ];
-
-    const max = Math.max(
-        ...subjects.map(item => item[1]),
-        1
-    );
-
-    container.innerHTML = subjects.map(subject => {
-        const percentage =
-            (subject[1] / max) * 100;
-
-        return `
-            <div class="report-subject">
-
-                <div class="report-subject-title">
-
-                    <span>
-                        <i class="dot ${subject[2]}"></i>
-                        ${subject[0]}
-                    </span>
-
-                    <span>
-                        ${subject[1]} سؤال
-                    </span>
-
-                </div>
-
-                <div class="bar">
-
-                    <span
-                        style="
-                            width:${percentage}%;
-                            background:
-                            ${
-                                subject[2] === "math"
-                                    ? "#3563f5"
-                                    : subject[2] === "persian"
-                                    ? "#20b486"
-                                    : subject[2] === "science"
-                                    ? "#8065e9"
-                                    : "#ed9a3d"
-                            }
-                        "
-                    ></span>
-
-                </div>
-
-            </div>
-        `;
-    }).join("");
-}
-
-function renderRecentDays() {
-    const container =
-        document.getElementById("recentDays");
-
-    if (!container) return;
-
-    const days = [];
-
-    for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-
-        date.setDate(date.getDate() - i);
-
-        const year = date.getFullYear();
-        const month =
-            String(date.getMonth() + 1).padStart(2, "0");
-        const day =
-            String(date.getDate()).padStart(2, "0");
-
-        const key =
-            `${year}-${month}-${day}`;
-
-        const question = appData.questions.find(
-            item => item.date === key
+    document.querySelectorAll("[data-nav]").forEach(item => {
+        item.classList.toggle(
+            "active",
+            item.dataset.nav === pageName
         );
+    });
 
-        const total = question
-            ? Number(question.math) +
-              Number(question.persian) +
-              Number(question.science) +
-              Number(question.arabic)
-            : 0;
+    const title = document.getElementById("pageTitle");
 
-        days.push({
-            key,
-            total
-        });
+    if (title) {
+        title.textContent = pages[pageName] || "";
     }
 
-    const max = Math.max(
-        ...days.map(day => day.total),
-        1
-    );
-
-    container.innerHTML = days.map(day => {
-        const percentage =
-            (day.total / max) * 100;
-
-        return `
-            <div class="recent-day">
-
-                <div class="recent-date">
-                    ${formatShortDate(day.key)}
-                </div>
-
-                <div class="recent-bar">
-                    <span style="width:${percentage}%"></span>
-                </div>
-
-                <div class="recent-number">
-                    ${day.total}
-                </div>
-
-            </div>
-        `;
-    }).join("");
-}
-
-function openTodoModal() {
-    const modal =
-        document.getElementById("todoModal");
-
-    const input =
-        document.getElementById("todoInput");
-
-    if (!modal) return;
-
-    modal.classList.add("show");
-
-    if (input) {
-        input.focus();
-    }
-}
-
-function closeTodoModal() {
-    const modal =
-        document.getElementById("todoModal");
-
-    if (modal) {
-        modal.classList.remove("show");
-    }
-}
-
-function navigate(pageName) {
-    document.querySelectorAll(".page")
-        .forEach(page => {
-            page.classList.remove("active");
-        });
-
-    document.querySelectorAll(".nav-item")
-        .forEach(item => {
-            item.classList.remove("active");
-        });
-
-    const page =
-        document.getElementById(pageName);
-
-    if (!page) return;
-
-    page.classList.add("active");
-
-    const nav =
-        document.querySelector(
-            `.nav-item[data-page="${pageName}"]`
-        );
-
-    if (nav) {
-        nav.classList.add("active");
+    if (pageName === "dashboard") {
+        updateDashboard();
     }
 
-    const pageTitle =
-        document.getElementById("pageTitle");
-
-    if (pageTitle) {
-        pageTitle.textContent =
-            pages[pageName];
+    if (pageName === "todos") {
+        renderTodos();
     }
 
-    const sidebar =
-        document.getElementById("sidebar");
+    if (pageName === "questions") {
+        renderQuestionHistory();
+    }
 
-    if (sidebar) {
-        sidebar.classList.remove("open");
+    if (pageName === "statistics") {
+        renderStatistics();
     }
 
     window.scrollTo({
         top: 0,
         behavior: "smooth"
     });
+
+    closeMobileMenu();
 }
 
-function renderAll() {
-    updateDashboard();
-    updateTodoCounters();
-    renderTodoList();
-    renderQuestionHistory();
-    renderStatistics();
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+
+    if (modal) {
+        modal.classList.add("active");
+    }
 }
 
-function initializeApp() {
-    document.querySelectorAll(".nav-item")
-        .forEach(button => {
-            button.addEventListener("click", () => {
-                navigate(button.dataset.page);
-            });
-        });
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
 
-    document.querySelectorAll("[data-open-page]")
-        .forEach(button => {
-            button.addEventListener("click", () => {
-                navigate(button.dataset.openPage);
-            });
-        });
+    if (modal) {
+        modal.classList.remove("active");
+    }
+}
 
-    document.querySelectorAll(".todo-tab")
-        .forEach(button => {
-            button.addEventListener("click", () => {
+function toggleMobileMenu() {
+    const sidebar = document.querySelector(".sidebar");
+    const overlay = document.querySelector(".mobile-overlay");
 
-                document.querySelectorAll(".todo-tab")
-                    .forEach(tab => {
-                        tab.classList.remove("active");
-                    });
-
-                button.classList.add("active");
-
-                todoFilter =
-                    button.dataset.todoFilter;
-
-                renderTodoList();
-            });
-        });
-
-    const openTodo =
-        document.getElementById("openTodoModal");
-
-    if (openTodo) {
-        openTodo.addEventListener(
-            "click",
-            openTodoModal
-        );
+    if (sidebar) {
+        sidebar.classList.toggle("open");
     }
 
-    const closeTodo =
-        document.getElementById("closeTodoModal");
+    if (overlay) {
+        overlay.classList.toggle("active");
+    }
+}
 
-    if (closeTodo) {
-        closeTodo.addEventListener(
-            "click",
-            closeTodoModal
-        );
+function closeMobileMenu() {
+    const sidebar = document.querySelector(".sidebar");
+    const overlay = document.querySelector(".mobile-overlay");
+
+    if (sidebar) {
+        sidebar.classList.remove("open");
     }
 
-    const addTodoButton =
-        document.getElementById("addTodo");
-
-    if (addTodoButton) {
-        addTodoButton.addEventListener(
-            "click",
-            addTodo
-        );
+    if (overlay) {
+        overlay.classList.remove("active");
     }
+}
 
-    const saveQuestionsButton =
-        document.getElementById("saveQuestions");
-
-    if (saveQuestionsButton) {
-        saveQuestionsButton.addEventListener(
-            "click",
-            saveQuestions
-        );
-    }
-
-    document.querySelectorAll("#questions input")
-        .forEach(input => {
-            input.addEventListener(
-                "input",
-                updateQuestionTotalPreview
-            );
-        });
-
-    const mobileMenu =
-        document.getElementById("mobileMenu");
-
-    if (mobileMenu) {
-        mobileMenu.addEventListener("click", () => {
-
-            const sidebar =
-                document.getElementById("sidebar");
-
-            if (sidebar) {
-                sidebar.classList.toggle("open");
-            }
-        });
-    }
-
-    const todoInput =
-        document.getElementById("todoInput");
-
-    if (todoInput) {
-        todoInput.addEventListener(
-            "keydown",
-            event => {
-                if (event.key === "Enter") {
-                    addTodo();
-                }
-            }
-        );
-    }
-
-    const todoModal =
-        document.getElementById("todoModal");
-
-    if (todoModal) {
-        todoModal.addEventListener(
-            "click",
-            event => {
-                if (event.target.id === "todoModal") {
-                    closeTodoModal();
-                }
-            }
-        );
-    }
-
-    document.addEventListener(
-        "keydown",
-        event => {
-            if (event.key === "Escape") {
-                closeTodoModal();
-            }
-        }
+function deleteAllData() {
+    const confirmed = confirm(
+        "آیا مطمئن هستید که می‌خواهید تمام اطلاعات حذف شود؟"
     );
 
-    const deleteAllData =
-        document.getElementById("deleteAllData");
-
-    if (deleteAllData) {
-        deleteAllData.addEventListener(
-            "click",
-            () => {
-
-                const confirmation = confirm(
-                    "آیا مطمئنی می‌خواهی تمام کارها و آمار سؤالات پاک شود؟"
-                );
-
-                if (!confirmation) return;
-
-                appData = {
-                    todos: [],
-                    questions: []
-                };
-
-                saveData();
-
-                renderAll();
-
-                loadTodayQuestions();
-
-                showToast("تمام اطلاعات پاک شد.");
-            }
-        );
+    if (!confirmed) {
+        return;
     }
 
-    updateTopbar();
-    loadTodayQuestions();
-    renderAll();
+    appData = {
+        todos: [],
+        questions: []
+    };
+
+    if (saveData()) {
+        renderTodos();
+        renderRecentTodos();
+        renderQuestionHistory();
+        renderStatistics();
+        updateDashboard();
+
+        showToast("تمام اطلاعات حذف شدند");
+    }
+}
+
+function initialize() {
+    const todoInput = document.getElementById("todoInput");
+
+    if (todoInput) {
+        todoInput.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                addTodo();
+            }
+        });
+    }
+
+    document.querySelectorAll("[data-nav]").forEach(item => {
+        item.addEventListener("click", event => {
+            event.preventDefault();
+
+            const page = item.dataset.nav;
+
+            if (page) {
+                showPage(page);
+            }
+        });
+    });
+
+    document.querySelectorAll("[data-todo-filter]").forEach(button => {
+        button.addEventListener("click", () => {
+            setTodoFilter(button.dataset.todoFilter);
+        });
+    });
+
+    document.querySelectorAll("[data-close-modal]").forEach(button => {
+        button.addEventListener("click", () => {
+            const modalId = button.dataset.closeModal;
+
+            if (modalId) {
+                closeModal(modalId);
+            }
+        });
+    });
+
+    document.querySelectorAll(".modal").forEach(modal => {
+        modal.addEventListener("click", event => {
+            if (event.target === modal) {
+                modal.classList.remove("active");
+            }
+        });
+    });
+
+    document.querySelectorAll("[data-mobile-menu]").forEach(button => {
+        button.addEventListener("click", toggleMobileMenu);
+    });
+
+    document.querySelectorAll(".mobile-overlay").forEach(overlay => {
+        overlay.addEventListener("click", closeMobileMenu);
+    });
+
+    renderTodos();
+    renderQuestionHistory();
+    renderStatistics();
+    updateDashboard();
+
+    showPage("dashboard");
 }
 
 if (document.readyState === "loading") {
-    document.addEventListener(
-        "DOMContentLoaded",
-        initializeApp
-    );
+    document.addEventListener("DOMContentLoaded", initialize);
 } else {
-    initializeApp();
+    initialize();
 }
+
+window.addTodo = addTodo;
+window.toggleTodo = toggleTodo;
+window.deleteTodo = deleteTodo;
+window.setTodoFilter = setTodoFilter;
+window.saveQuestion = saveQuestion;
+window.deleteQuestion = deleteQuestion;
+window.showPage = showPage;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.toggleMobileMenu = toggleMobileMenu;
+window.closeMobileMenu = closeMobileMenu;
+window.deleteAllData = deleteAllData;
