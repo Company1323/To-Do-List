@@ -1,44 +1,39 @@
-const STORAGE_KEY = "studyFlow_v4";
-
-const defaultData = {
-    todos: [],
-    questions: []
-};
+const STORAGE_KEY = "studyFlow_data";
 
 let appData = loadData();
 let todoFilter = "all";
 
-const pages = {
-    dashboard: "داشبورد",
-    todos: "کارهای من",
-    questions: "ثبت سؤالات",
-    statistics: "آمار و گزارش"
+const subjects = {
+    math: "ریاضی",
+    persian: "فارسی",
+    science: "علوم",
+    arabic: "عربی"
 };
+
+function createDefaultData() {
+    return {
+        todos: [],
+        questions: []
+    };
+}
 
 function loadData() {
     try {
-        const savedData = localStorage.getItem(STORAGE_KEY);
+        const saved = localStorage.getItem(STORAGE_KEY);
 
-        if (!savedData) {
-            return {
-                todos: [],
-                questions: []
-            };
+        if (!saved) {
+            return createDefaultData();
         }
 
-        const data = JSON.parse(savedData);
+        const data = JSON.parse(saved);
 
         return {
             todos: Array.isArray(data.todos) ? data.todos : [],
             questions: Array.isArray(data.questions) ? data.questions : []
         };
     } catch (error) {
-        console.error("خطا در بارگذاری اطلاعات:", error);
-
-        return {
-            todos: [],
-            questions: []
-        };
+        console.error("Load error:", error);
+        return createDefaultData();
     }
 }
 
@@ -51,29 +46,55 @@ function saveData() {
 
         return true;
     } catch (error) {
-        console.error("خطا در ذخیره اطلاعات:", error);
+        console.error("Save error:", error);
         showToast("ذخیره اطلاعات انجام نشد", "error");
         return false;
     }
 }
 
-function escapeHTML(text) {
-    const element = document.createElement("div");
-    element.textContent = text ?? "";
-    return element.innerHTML;
+function getToday() {
+    const now = new Date();
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+function formatDate(dateString) {
+    if (!dateString) {
+        return "";
+    }
+
+    const date = new Date(dateString);
+
+    if (isNaN(date.getTime())) {
+        return dateString;
+    }
+
+    return date.toLocaleDateString("fa-IR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+    });
 }
 
 function showToast(message, type = "success") {
-    let toast = document.getElementById("toast");
+    const toast = document.getElementById("toast");
 
     if (!toast) {
-        toast = document.createElement("div");
-        toast.id = "toast";
-        document.body.appendChild(toast);
+        return;
     }
 
     toast.textContent = message;
-    toast.className = `toast ${type}`;
+
+    toast.classList.remove("show");
+    toast.classList.remove("error");
+
+    if (type === "error") {
+        toast.classList.add("error");
+    }
 
     setTimeout(() => {
         toast.classList.add("show");
@@ -84,116 +105,230 @@ function showToast(message, type = "success") {
     }, 2500);
 }
 
-function formatDate(date) {
-    try {
-        const d = new Date(date);
+function escapeHTML(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
 
-        return d.toLocaleDateString("fa-IR", {
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-        });
-    } catch {
-        return "";
+
+function updateTodayDate() {
+    const element = document.getElementById("todayDate");
+
+    if (!element) {
+        return;
     }
+
+    const now = new Date();
+
+    element.textContent = now.toLocaleDateString("fa-IR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long"
+    });
 }
 
-function formatTime(date) {
-    try {
-        const d = new Date(date);
-
-        return d.toLocaleTimeString("fa-IR", {
-            hour: "2-digit",
-            minute: "2-digit"
-        });
-    } catch {
-        return "";
-    }
-}
-
-function getToday() {
-    const date = new Date();
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-}
-
-function getSubjectName(subject) {
-    const subjects = {
-        math: "ریاضی",
-        persian: "فارسی",
-        science: "علوم",
-        arabic: "عربی"
-    };
-
-    return subjects[subject] || subject;
-}
 
 function getTotalQuestions() {
-    return appData.questions.reduce(
-        (total, question) => total + Number(question.count || 0),
-        0
+    return appData.questions.reduce((total, item) => {
+        return total +
+            Number(item.math || 0) +
+            Number(item.persian || 0) +
+            Number(item.science || 0) +
+            Number(item.arabic || 0);
+    }, 0);
+}
+
+
+function getTodayQuestionData() {
+    const today = getToday();
+
+    const todayItems = appData.questions.filter(
+        item => item.date === today
+    );
+
+    return {
+        math: todayItems.reduce(
+            (total, item) => total + Number(item.math || 0),
+            0
+        ),
+
+        persian: todayItems.reduce(
+            (total, item) => total + Number(item.persian || 0),
+            0
+        ),
+
+        science: todayItems.reduce(
+            (total, item) => total + Number(item.science || 0),
+            0
+        ),
+
+        arabic: todayItems.reduce(
+            (total, item) => total + Number(item.arabic || 0),
+            0
+        )
+    };
+}
+
+
+function getTodayTotal() {
+    const data = getTodayQuestionData();
+
+    return (
+        data.math +
+        data.persian +
+        data.science +
+        data.arabic
     );
 }
 
-function getTodayQuestions() {
-    const today = getToday();
-
-    return appData.questions
-        .filter(question => question.date === today)
-        .reduce(
-            (total, question) => total + Number(question.count || 0),
-            0
-        );
-}
-
-function getCompletedTodos() {
-    return appData.todos.filter(todo => todo.completed).length;
-}
-
-function getPendingTodos() {
-    return appData.todos.filter(todo => !todo.completed).length;
-}
 
 function getSubjectTotal(subject) {
-    return appData.questions
-        .filter(question => question.subject === subject)
-        .reduce(
-            (total, question) => total + Number(question.count || 0),
-            0
-        );
+    return appData.questions.reduce((total, item) => {
+        return total + Number(item[subject] || 0);
+    }, 0);
 }
 
-function updateDashboard() {
-    const totalQuestions = document.getElementById("totalQuestions");
-    const todayQuestions = document.getElementById("todayQuestions");
-    const totalTodos = document.getElementById("totalTodos");
-    const completedTodos = document.getElementById("completedTodos");
 
-    if (totalQuestions) {
-        totalQuestions.textContent = getTotalQuestions();
+function getCompletedTodos() {
+    return appData.todos.filter(
+        todo => todo.completed
+    ).length;
+}
+
+
+function getRemainingTodos() {
+    return appData.todos.filter(
+        todo => !todo.completed
+    ).length;
+}
+
+
+function updateDashboard() {
+    const remainingTasks =
+        document.getElementById("remainingTasks");
+
+    const completedTasks =
+        document.getElementById("completedTasks");
+
+    const todayQuestions =
+        document.getElementById("todayQuestions");
+
+    const allQuestions =
+        document.getElementById("allQuestions");
+
+    if (remainingTasks) {
+        remainingTasks.textContent =
+            getRemainingTodos();
+    }
+
+    if (completedTasks) {
+        completedTasks.textContent =
+            getCompletedTodos();
     }
 
     if (todayQuestions) {
-        todayQuestions.textContent = getTodayQuestions();
+        todayQuestions.textContent =
+            getTodayTotal();
     }
 
-    if (totalTodos) {
-        totalTodos.textContent = appData.todos.length;
+    if (allQuestions) {
+        allQuestions.textContent =
+            getTotalQuestions();
     }
 
-    if (completedTodos) {
-        completedTodos.textContent = getCompletedTodos();
-    }
-
-    renderRecentTodos();
+    updateDashboardSubjects();
+    renderDashboardTodos();
 }
 
-function renderRecentTodos() {
-    const container = document.getElementById("recentTodos");
+
+function updateDashboardSubjects() {
+    const math =
+        getSubjectTotal("math");
+
+    const persian =
+        getSubjectTotal("persian");
+
+    const science =
+        getSubjectTotal("science");
+
+    const arabic =
+        getSubjectTotal("arabic");
+
+    const mathElement =
+        document.getElementById("mathDashboard");
+
+    const persianElement =
+        document.getElementById("persianDashboard");
+
+    const scienceElement =
+        document.getElementById("scienceDashboard");
+
+    const arabicElement =
+        document.getElementById("arabicDashboard");
+
+    if (mathElement) {
+        mathElement.textContent = math;
+    }
+
+    if (persianElement) {
+        persianElement.textContent = persian;
+    }
+
+    if (scienceElement) {
+        scienceElement.textContent = science;
+    }
+
+    if (arabicElement) {
+        arabicElement.textContent = arabic;
+    }
+
+    const max =
+        Math.max(
+            math,
+            persian,
+            science,
+            arabic,
+            1
+        );
+
+    const mathBar =
+        document.getElementById("mathBar");
+
+    const persianBar =
+        document.getElementById("persianBar");
+
+    const scienceBar =
+        document.getElementById("scienceBar");
+
+    const arabicBar =
+        document.getElementById("arabicBar");
+
+    if (mathBar) {
+        mathBar.style.width =
+            `${(math / max) * 100}%`;
+    }
+
+    if (persianBar) {
+        persianBar.style.width =
+            `${(persian / max) * 100}%`;
+    }
+
+    if (scienceBar) {
+        scienceBar.style.width =
+            `${(science / max) * 100}%`;
+    }
+
+    if (arabicBar) {
+        arabicBar.style.width =
+            `${(arabic / max) * 100}%`;
+    }
+}
+
+
+function renderDashboardTodos() {
+    const container =
+        document.getElementById("dashboardTodos");
 
     if (!container) {
         return;
@@ -206,7 +341,7 @@ function renderRecentTodos() {
     if (todos.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                هنوز کاری اضافه نشده است.
+                هنوز کاری ثبت نشده است.
             </div>
         `;
 
@@ -217,9 +352,9 @@ function renderRecentTodos() {
         <div class="todo-item ${todo.completed ? "completed" : ""}">
 
             <button
-                type="button"
                 class="todo-check ${todo.completed ? "checked" : ""}"
-                onclick="toggleTodo(${todo.id})">
+                type="button"
+                data-toggle-todo="${todo.id}">
                 ${todo.completed ? "✓" : ""}
             </button>
 
@@ -229,17 +364,12 @@ function renderRecentTodos() {
                     ${escapeHTML(todo.text)}
                 </div>
 
-                <div class="todo-time">
-                    ${formatDate(todo.createdAt)}
-                    ${formatTime(todo.createdAt)}
-                </div>
-
             </div>
 
             <button
-                type="button"
                 class="delete-btn"
-                onclick="deleteTodo(${todo.id})">
+                type="button"
+                data-delete-todo="${todo.id}">
                 ×
             </button>
 
@@ -247,8 +377,10 @@ function renderRecentTodos() {
     `).join("");
 }
 
+
 function renderTodos() {
-    const container = document.getElementById("todoList");
+    const container =
+        document.getElementById("todoList");
 
     if (!container) {
         return;
@@ -257,11 +389,13 @@ function renderTodos() {
     let todos = [...appData.todos];
 
     if (todoFilter === "active") {
-        todos = todos.filter(todo => !todo.completed);
+        todos =
+            todos.filter(todo => !todo.completed);
     }
 
     if (todoFilter === "completed") {
-        todos = todos.filter(todo => todo.completed);
+        todos =
+            todos.filter(todo => todo.completed);
     }
 
     todos.sort((a, b) => b.id - a.id);
@@ -269,7 +403,7 @@ function renderTodos() {
     if (todos.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                موردی برای نمایش وجود ندارد.
+                هیچ کاری برای نمایش وجود ندارد.
             </div>
         `;
 
@@ -280,9 +414,9 @@ function renderTodos() {
         <div class="todo-item ${todo.completed ? "completed" : ""}">
 
             <button
-                type="button"
                 class="todo-check ${todo.completed ? "checked" : ""}"
-                onclick="toggleTodo(${todo.id})">
+                type="button"
+                data-toggle-todo="${todo.id}">
                 ${todo.completed ? "✓" : ""}
             </button>
 
@@ -294,15 +428,14 @@ function renderTodos() {
 
                 <div class="todo-time">
                     ${formatDate(todo.createdAt)}
-                    ${formatTime(todo.createdAt)}
                 </div>
 
             </div>
 
             <button
-                type="button"
                 class="delete-btn"
-                onclick="deleteTodo(${todo.id})">
+                type="button"
+                data-delete-todo="${todo.id}">
                 ×
             </button>
 
@@ -310,17 +443,51 @@ function renderTodos() {
     `).join("");
 }
 
+
+function updateTodoCounters() {
+    const all =
+        document.getElementById("todoAllCount");
+
+    const completed =
+        document.getElementById("todoCompletedCount");
+
+    const remaining =
+        document.getElementById("todoRemainingCount");
+
+    if (all) {
+        all.textContent =
+            appData.todos.length;
+    }
+
+    if (completed) {
+        completed.textContent =
+            getCompletedTodos();
+    }
+
+    if (remaining) {
+        remaining.textContent =
+            getRemainingTodos();
+    }
+}
+
+
 function addTodo() {
-    const input = document.getElementById("todoInput");
+    const input =
+        document.getElementById("todoInput");
 
     if (!input) {
         return;
     }
 
-    const text = input.value.trim();
+    const text =
+        input.value.trim();
 
     if (!text) {
-        showToast("لطفاً نام کار را وارد کنید", "error");
+        showToast(
+            "لطفاً عنوان کار را وارد کنید",
+            "error"
+        );
+
         return;
     }
 
@@ -333,51 +500,52 @@ function addTodo() {
 
     appData.todos.push(newTodo);
 
-    const saved = saveData();
-
-    if (!saved) {
+    if (!saveData()) {
         return;
     }
 
     input.value = "";
 
+    closeTodoModal();
+
     renderTodos();
-    renderRecentTodos();
+    renderDashboardTodos();
+    updateTodoCounters();
     updateDashboard();
 
-    showToast("کار با موفقیت اضافه شد");
+    showToast("کار جدید اضافه شد");
 }
 
+
 function toggleTodo(id) {
-    const todo = appData.todos.find(
-        item => item.id === id
-    );
+    const todo =
+        appData.todos.find(
+            item => item.id === Number(id)
+        );
 
     if (!todo) {
         return;
     }
 
-    todo.completed = !todo.completed;
+    todo.completed =
+        !todo.completed;
 
     if (!saveData()) {
         return;
     }
 
     renderTodos();
-    renderRecentTodos();
+    renderDashboardTodos();
+    updateTodoCounters();
     updateDashboard();
-
-    showToast(
-        todo.completed
-            ? "کار انجام شد"
-            : "کار دوباره فعال شد"
-    );
 }
 
+
 function deleteTodo(id) {
-    const index = appData.todos.findIndex(
-        item => item.id === id
-    );
+    const index =
+        appData.todos.findIndex(
+            item => item.id === Number(id)
+        );
 
     if (index === -1) {
         return;
@@ -390,81 +558,154 @@ function deleteTodo(id) {
     }
 
     renderTodos();
-    renderRecentTodos();
+    renderDashboardTodos();
+    updateTodoCounters();
     updateDashboard();
 
     showToast("کار حذف شد");
 }
 
-function setTodoFilter(filter) {
-    todoFilter = filter;
 
-    document
-        .querySelectorAll("[data-todo-filter]")
-        .forEach(button => {
-            button.classList.toggle(
-                "active",
-                button.dataset.todoFilter === filter
-            );
-        });
+function updateQuestionInputTotal() {
+    const math =
+        Number(
+            document.getElementById("mathInput")?.value || 0
+        );
 
-    renderTodos();
+    const persian =
+        Number(
+            document.getElementById("persianInput")?.value || 0
+        );
+
+    const science =
+        Number(
+            document.getElementById("scienceInput")?.value || 0
+        );
+
+    const arabic =
+        Number(
+            document.getElementById("arabicInput")?.value || 0
+        );
+
+    const total =
+        math +
+        persian +
+        science +
+        arabic;
+
+    const element =
+        document.getElementById("questionTodayTotal");
+
+    if (element) {
+        element.textContent = total;
+    }
 }
 
-function saveQuestion() {
-    const subjectElement =
-        document.getElementById("questionSubject");
 
-    const countElement =
-        document.getElementById("questionCount");
+function saveQuestions() {
+    const math =
+        Number(
+            document.getElementById("mathInput")?.value || 0
+        );
 
-    const dateElement =
-        document.getElementById("questionDate");
+    const persian =
+        Number(
+            document.getElementById("persianInput")?.value || 0
+        );
 
-    if (!subjectElement || !countElement) {
+    const science =
+        Number(
+            document.getElementById("scienceInput")?.value || 0
+        );
+
+    const arabic =
+        Number(
+            document.getElementById("arabicInput")?.value || 0
+        );
+
+    if (
+        math < 0 ||
+        persian < 0 ||
+        science < 0 ||
+        arabic < 0
+    ) {
+        showToast(
+            "تعداد سؤال نمی‌تواند منفی باشد",
+            "error"
+        );
+
         return;
     }
 
-    const subject = subjectElement.value;
-    const count = Number(countElement.value);
+    const total =
+        math +
+        persian +
+        science +
+        arabic;
 
-    const date =
-        dateElement && dateElement.value
-            ? dateElement.value
-            : getToday();
+    if (total === 0) {
+        showToast(
+            "حداقل یک سؤال وارد کن",
+            "error"
+        );
 
-    if (!subject) {
-        showToast("لطفاً درس را انتخاب کنید", "error");
         return;
     }
 
-    if (!count || count <= 0) {
-        showToast("تعداد سؤال را درست وارد کنید", "error");
-        return;
+    const today =
+        getToday();
+
+    const existing =
+        appData.questions.find(
+            item => item.date === today
+        );
+
+    if (existing) {
+        existing.math =
+            Number(existing.math || 0) + math;
+
+        existing.persian =
+            Number(existing.persian || 0) + persian;
+
+        existing.science =
+            Number(existing.science || 0) + science;
+
+        existing.arabic =
+            Number(existing.arabic || 0) + arabic;
+
+        existing.updatedAt =
+            new Date().toISOString();
+
+    } else {
+        appData.questions.push({
+            id: Date.now(),
+            date: today,
+            math: math,
+            persian: persian,
+            science: science,
+            arabic: arabic,
+            createdAt: new Date().toISOString()
+        });
     }
-
-    const newQuestion = {
-        id: Date.now(),
-        subject: subject,
-        count: count,
-        date: date,
-        createdAt: new Date().toISOString()
-    };
-
-    appData.questions.push(newQuestion);
 
     if (!saveData()) {
         return;
     }
 
-    countElement.value = "";
+    document.getElementById("mathInput").value = "";
+    document.getElementById("persianInput").value = "";
+    document.getElementById("scienceInput").value = "";
+    document.getElementById("arabicInput").value = "";
+
+    updateQuestionInputTotal();
 
     renderQuestionHistory();
-    renderStatistics();
     updateDashboard();
+    renderStatistics();
 
-    showToast("سؤال‌ها با موفقیت ثبت شدند");
+    showToast("عملکرد ثبت شد");
 }
+
 
 function renderQuestionHistory() {
     const container =
@@ -474,259 +715,465 @@ function renderQuestionHistory() {
         return;
     }
 
-    const questions = [...appData.questions]
-        .sort((a, b) => b.id - a.id);
+    const questions =
+        [...appData.questions]
+            .sort((a, b) => {
+                return b.id - a.id;
+            });
+
+    const historyCount =
+        document.getElementById("historyCount");
+
+    if (historyCount) {
+        historyCount.textContent =
+            `${questions.length} روز`;
+    }
 
     if (questions.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                هنوز سؤالی ثبت نشده است.
+                هنوز هیچ عملکردی ثبت نشده است.
             </div>
         `;
 
         return;
     }
 
-    container.innerHTML = questions.map(question => `
-        <div class="question-history-item">
+    container.innerHTML =
+        questions.map(item => {
 
-            <div class="question-history-info">
+            const total =
+                Number(item.math || 0) +
+                Number(item.persian || 0) +
+                Number(item.science || 0) +
+                Number(item.arabic || 0);
 
-                <strong>
-                    ${escapeHTML(
-                        getSubjectName(question.subject)
-                    )}
-                </strong>
+            return `
+                <div class="history-item">
 
-                <div class="question-history-date">
-                    ${formatDate(question.date)}
+                    <div class="history-date">
+                        ${formatDate(item.date)}
+                    </div>
+
+                    <div class="history-subjects">
+
+                        <span>
+                            ریاضی:
+                            <strong>${item.math || 0}</strong>
+                        </span>
+
+                        <span>
+                            فارسی:
+                            <strong>${item.persian || 0}</strong>
+                        </span>
+
+                        <span>
+                            علوم:
+                            <strong>${item.science || 0}</strong>
+                        </span>
+
+                        <span>
+                            عربی:
+                            <strong>${item.arabic || 0}</strong>
+                        </span>
+
+                    </div>
+
+                    <div class="history-total">
+                        ${total} سؤال
+                    </div>
+
                 </div>
-
-            </div>
-
-            <div class="question-count">
-                ${question.count} سؤال
-            </div>
-
-            <button
-                type="button"
-                class="delete-btn"
-                onclick="deleteQuestion(${question.id})">
-                ×
-            </button>
-
-        </div>
-    `).join("");
+            `;
+        }).join("");
 }
 
-function deleteQuestion(id) {
-    const index = appData.questions.findIndex(
-        question => question.id === id
-    );
-
-    if (index === -1) {
-        return;
-    }
-
-    appData.questions.splice(index, 1);
-
-    if (!saveData()) {
-        return;
-    }
-
-    renderQuestionHistory();
-    renderStatistics();
-    updateDashboard();
-
-    showToast("ثبت سؤال حذف شد");
-}
 
 function renderStatistics() {
     const total =
-        document.getElementById("statisticsTotal");
-
-    const today =
-        document.getElementById("statisticsToday");
-
-    const todos =
-        document.getElementById("statisticsTodos");
-
-    if (total) {
-        total.textContent = getTotalQuestions();
-    }
-
-    if (today) {
-        today.textContent = getTodayQuestions();
-    }
-
-    if (todos) {
-        todos.textContent = appData.todos.length;
-    }
+        document.getElementById("reportQuestions");
 
     const math =
-        document.getElementById("mathTotal");
+        document.getElementById("reportMath");
 
     const persian =
-        document.getElementById("persianTotal");
+        document.getElementById("reportPersian");
 
     const science =
-        document.getElementById("scienceTotal");
+        document.getElementById("reportScience");
 
     const arabic =
-        document.getElementById("arabicTotal");
+        document.getElementById("reportArabic");
+
+    const todos =
+        document.getElementById("reportTodos");
+
+    if (total) {
+        total.textContent =
+            getTotalQuestions();
+    }
 
     if (math) {
-        math.textContent = getSubjectTotal("math");
+        math.textContent =
+            getSubjectTotal("math");
     }
 
     if (persian) {
-        persian.textContent = getSubjectTotal("persian");
+        persian.textContent =
+            getSubjectTotal("persian");
     }
 
     if (science) {
-        science.textContent = getSubjectTotal("science");
+        science.textContent =
+            getSubjectTotal("science");
     }
 
     if (arabic) {
-        arabic.textContent = getSubjectTotal("arabic");
+        arabic.textContent =
+            getSubjectTotal("arabic");
     }
+
+    if (todos) {
+        todos.textContent =
+            getCompletedTodos();
+    }
+
+    renderSubjectReport();
+    renderRecentDays();
 }
 
-function showPage(pageName) {
+
+function renderSubjectReport() {
+    const container =
+        document.getElementById("subjectReport");
+
+    if (!container) {
+        return;
+    }
+
+    const values = {
+        math: getSubjectTotal("math"),
+        persian: getSubjectTotal("persian"),
+        science: getSubjectTotal("science"),
+        arabic: getSubjectTotal("arabic")
+    };
+
+    const max =
+        Math.max(
+            values.math,
+            values.persian,
+            values.science,
+            values.arabic,
+            1
+        );
+
+    container.innerHTML =
+        Object.keys(values).map(subject => `
+            <div class="subject-report-item">
+
+                <div class="subject-report-header">
+                    <span>
+                        ${subjects[subject]}
+                    </span>
+
+                    <strong>
+                        ${values[subject]}
+                    </strong>
+                </div>
+
+                <div class="bar">
+                    <span
+                        style="width:${(values[subject] / max) * 100}%">
+                    </span>
+                </div>
+
+            </div>
+        `).join("");
+}
+
+
+function renderRecentDays() {
+    const container =
+        document.getElementById("recentDays");
+
+    if (!container) {
+        return;
+    }
+
+    const items =
+        [...appData.questions]
+            .sort((a, b) => b.id - a.id)
+            .slice(0, 7);
+
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                هنوز فعالیتی ثبت نشده است.
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        items.map(item => {
+
+            const total =
+                Number(item.math || 0) +
+                Number(item.persian || 0) +
+                Number(item.science || 0) +
+                Number(item.arabic || 0);
+
+            return `
+                <div class="recent-day-item">
+
+                    <span>
+                        ${formatDate(item.date)}
+                    </span>
+
+                    <strong>
+                        ${total} سؤال
+                    </strong>
+
+                </div>
+            `;
+        }).join("");
+}
+
+
+function showPage(pageId) {
     document
-        .querySelectorAll("[data-page]")
+        .querySelectorAll(".page")
         .forEach(page => {
             page.classList.remove("active");
         });
 
-    const selectedPage =
-        document.querySelector(
-            `[data-page="${pageName}"]`
-        );
+    const page =
+        document.getElementById(pageId);
 
-    if (selectedPage) {
-        selectedPage.classList.add("active");
+    if (page) {
+        page.classList.add("active");
     }
 
     document
-        .querySelectorAll("[data-nav]")
-        .forEach(item => {
-            item.classList.toggle(
+        .querySelectorAll(".nav-item")
+        .forEach(button => {
+            button.classList.toggle(
                 "active",
-                item.dataset.nav === pageName
+                button.dataset.page === pageId
             );
         });
+
+    const titles = {
+        dashboard: "داشبورد",
+        todos: "کارهای من",
+        questions: "ثبت سؤالات",
+        statistics: "آمار و گزارش"
+    };
 
     const title =
         document.getElementById("pageTitle");
 
     if (title) {
         title.textContent =
-            pages[pageName] || "";
+            titles[pageId] || "";
     }
 
-    if (pageName === "dashboard") {
+    if (pageId === "dashboard") {
         updateDashboard();
     }
 
-    if (pageName === "todos") {
+    if (pageId === "todos") {
         renderTodos();
+        updateTodoCounters();
     }
 
-    if (pageName === "questions") {
+    if (pageId === "questions") {
         renderQuestionHistory();
     }
 
-    if (pageName === "statistics") {
+    if (pageId === "statistics") {
         renderStatistics();
     }
 
     closeMobileMenu();
-
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
 }
 
-function openModal(id) {
-    const modal =
-        document.getElementById(id);
 
-    if (modal) {
-        modal.classList.add("active");
+function openTodoModal() {
+    const modal =
+        document.getElementById("todoModal");
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add("active");
+
+    const input =
+        document.getElementById("todoInput");
+
+    if (input) {
+        setTimeout(() => {
+            input.focus();
+        }, 100);
     }
 }
 
-function closeModal(id) {
+
+function closeTodoModal() {
     const modal =
-        document.getElementById(id);
+        document.getElementById("todoModal");
 
     if (modal) {
         modal.classList.remove("active");
     }
 }
 
+
 function toggleMobileMenu() {
     const sidebar =
-        document.querySelector(".sidebar");
-
-    const overlay =
-        document.querySelector(".mobile-overlay");
+        document.getElementById("sidebar");
 
     if (sidebar) {
         sidebar.classList.toggle("open");
     }
-
-    if (overlay) {
-        overlay.classList.toggle("active");
-    }
 }
+
 
 function closeMobileMenu() {
     const sidebar =
-        document.querySelector(".sidebar");
-
-    const overlay =
-        document.querySelector(".mobile-overlay");
+        document.getElementById("sidebar");
 
     if (sidebar) {
         sidebar.classList.remove("open");
     }
-
-    if (overlay) {
-        overlay.classList.remove("active");
-    }
 }
 
+
 function deleteAllData() {
-    const confirmed = confirm(
-        "آیا مطمئن هستید که می‌خواهید تمام اطلاعات حذف شود؟"
-    );
+    const confirmed =
+        confirm(
+            "آیا مطمئن هستی که می‌خواهی همه اطلاعات حذف شود؟"
+        );
 
     if (!confirmed) {
         return;
     }
 
-    appData = {
-        todos: [],
-        questions: []
-    };
+    appData = createDefaultData();
 
     if (!saveData()) {
         return;
     }
 
     renderTodos();
+    renderDashboardTodos();
     renderQuestionHistory();
     renderStatistics();
-    renderRecentTodos();
+    updateTodoCounters();
     updateDashboard();
 
-    showToast("تمام اطلاعات حذف شدند");
+    showToast("همه اطلاعات پاک شد");
 }
 
-function initialize() {
+
+function setupEvents() {
+
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+                    showPage(
+                        button.dataset.page
+                    );
+                }
+            );
+
+        });
+
+
+    document
+        .querySelectorAll("[data-open-page]")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+                    showPage(
+                        button.dataset.openPage
+                    );
+                }
+            );
+
+        });
+
+
+    document
+        .querySelectorAll("[data-todo-filter]")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    todoFilter =
+                        button.dataset.todoFilter;
+
+                    document
+                        .querySelectorAll(
+                            "[data-todo-filter]"
+                        )
+                        .forEach(item => {
+                            item.classList.toggle(
+                                "active",
+                                item === button
+                            );
+                        });
+
+                    renderTodos();
+                }
+            );
+
+        });
+
+
+    const openTodo =
+        document.getElementById("openTodoModal");
+
+    if (openTodo) {
+        openTodo.addEventListener(
+            "click",
+            openTodoModal
+        );
+    }
+
+
+    const closeTodo =
+        document.getElementById("closeTodoModal");
+
+    if (closeTodo) {
+        closeTodo.addEventListener(
+            "click",
+            closeTodoModal
+        );
+    }
+
+
+    const addTodoButton =
+        document.getElementById("addTodo");
+
+    if (addTodoButton) {
+        addTodoButton.addEventListener(
+            "click",
+            addTodo
+        );
+    }
+
+
     const todoInput =
         document.getElementById("todoInput");
 
@@ -734,102 +1181,153 @@ function initialize() {
         todoInput.addEventListener(
             "keydown",
             event => {
+
                 if (event.key === "Enter") {
                     event.preventDefault();
                     addTodo();
                 }
+
             }
         );
     }
 
-    document
-        .querySelectorAll("[data-nav]")
-        .forEach(item => {
-            item.addEventListener(
-                "click",
-                event => {
-                    event.preventDefault();
 
-                    const page =
-                        item.dataset.nav;
+    const saveQuestionsButton =
+        document.getElementById("saveQuestions");
 
-                    if (page) {
-                        showPage(page);
-                    }
+    if (saveQuestionsButton) {
+        saveQuestionsButton.addEventListener(
+            "click",
+            saveQuestions
+        );
+    }
+
+
+    [
+        "mathInput",
+        "persianInput",
+        "scienceInput",
+        "arabicInput"
+    ].forEach(id => {
+
+        const input =
+            document.getElementById(id);
+
+        if (input) {
+            input.addEventListener(
+                "input",
+                updateQuestionInputTotal
+            );
+        }
+
+    });
+
+
+    const mobileMenu =
+        document.getElementById("mobileMenu");
+
+    if (mobileMenu) {
+        mobileMenu.addEventListener(
+            "click",
+            toggleMobileMenu
+        );
+    }
+
+
+    const deleteAll =
+        document.getElementById("deleteAllData");
+
+    if (deleteAll) {
+        deleteAll.addEventListener(
+            "click",
+            deleteAllData
+        );
+    }
+
+
+    document.addEventListener(
+        "click",
+        event => {
+
+            const toggleButton =
+                event.target.closest(
+                    "[data-toggle-todo]"
+                );
+
+            if (toggleButton) {
+
+                toggleTodo(
+                    toggleButton.dataset.toggleTodo
+                );
+
+                return;
+            }
+
+
+            const deleteButton =
+                event.target.closest(
+                    "[data-delete-todo]"
+                );
+
+            if (deleteButton) {
+
+                deleteTodo(
+                    deleteButton.dataset.deleteTodo
+                );
+
+            }
+
+        }
+    );
+
+
+    const modal =
+        document.getElementById("todoModal");
+
+    if (modal) {
+
+        modal.addEventListener(
+            "click",
+            event => {
+
+                if (event.target === modal) {
+                    closeTodoModal();
                 }
-            );
-        });
 
-    document
-        .querySelectorAll("[data-todo-filter]")
-        .forEach(button => {
-            button.addEventListener(
-                "click",
-                () => {
-                    setTodoFilter(
-                        button.dataset.todoFilter
-                    );
-                }
-            );
-        });
+            }
+        );
 
-    document
-        .querySelectorAll("[data-mobile-menu]")
-        .forEach(button => {
-            button.addEventListener(
-                "click",
-                toggleMobileMenu
-            );
-        });
+    }
 
-    document
-        .querySelectorAll(".mobile-overlay")
-        .forEach(overlay => {
-            overlay.addEventListener(
-                "click",
-                closeMobileMenu
-            );
-        });
+}
 
-    document
-        .querySelectorAll(".modal")
-        .forEach(modal => {
-            modal.addEventListener(
-                "click",
-                event => {
-                    if (event.target === modal) {
-                        modal.classList.remove("active");
-                    }
-                }
-            );
-        });
+
+function initialize() {
+    updateTodayDate();
+
+    setupEvents();
 
     renderTodos();
+    renderDashboardTodos();
     renderQuestionHistory();
     renderStatistics();
+    updateTodoCounters();
+    updateQuestionInputTotal();
     updateDashboard();
 
     showPage("dashboard");
 }
 
+
 if (document.readyState === "loading") {
+
     document.addEventListener(
         "DOMContentLoaded",
         initialize
     );
-} else {
-    initialize();
-}
 
-window.addTodo = addTodo;
-window.toggleTodo = toggleTodo;
-window.deleteTodo = deleteTodo;
-window.setTodoFilter = setTodoFilter;
-window.saveQuestion = saveQuestion;
-window.deleteQuestion = deleteQuestion;
-window.showPage = showPage;
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.toggleMobileMenu = toggleMobileMenu;
-window.closeMobileMenu = closeMobileMenu;
-window.deleteAllData = deleteAllData;
+} else {
+
+    initialize();
+
+}
